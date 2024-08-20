@@ -1,8 +1,16 @@
 #!/usr/bin/env python
 # coding: utf-8
+from argparse import ArgumentParser
+pa = ArgumentParser()
+pa.add_argument("logfile", type=str, help="path to a log file")
+pa.add_argument("--ntrain", type=int, help="Number of training images to load", default=1e5)
+pa.add_argument("--lr", type=float, default=0.001, help="learning rate")
+pa.add_argument("--cpu", action="store_true", help="Run training on the CPU (slow)")
+args = pa.parse_args()
 
 import os
 import pandas as pd
+import logging
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
@@ -16,6 +24,33 @@ labels_map = {
     2: "Other",
     3: "Precipitate",
 }
+
+
+def getLog(filename=None, level="info", do_nothing=False):
+    """
+    :param filename: optionally log to a file
+    """
+    levels = {"info": 20, "debug": 10, "critical": 50}
+    if do_nothing:
+        logger = logging.getLogger()
+        logger.setLevel(levels["critical"])
+        return logger
+    logger = logging.getLogger("bravedrop")
+    logger.setLevel(levels["info"])
+
+    console = logging.StreamHandler()
+    console.setFormatter(logging.Formatter("%(message)s"))
+    console.setLevel(levels[level])
+    logger.addHandler(console)
+
+    if filename is not None:
+        logfile = logging.FileHandler(filename)
+        logfile.setFormatter(logging.Formatter("%(asctime)s >>  %(message)s"))
+        logfile.setLevel(levels["info"])
+        logger.addHandler(logfile)
+    return logger
+
+
 
 class MARCODataset(Dataset):
     def __init__(self, annotations_file, transform=None, target_transform=None, maximages=None):
@@ -39,6 +74,8 @@ class MARCODataset(Dataset):
         return image, label
 
 
+
+log = getLog(args.logfile)
 # Paths to the dataset files
 training_file = '/mnt/data/ns1/brave/MARCO/marco.ccr.buffalo.edu/data/archive/train_out/info.csv'
 testing_file = '/mnt/data/ns1/brave/MARCO/marco.ccr.buffalo.edu/data/archive/test_out/info.csv'
@@ -50,11 +87,16 @@ transform = transforms.Compose([
 ])
 
 # Create datasets
-training_dataset = MARCODataset(training_file, transform=transform, maximages=100000)
-testing_dataset = MARCODataset(testing_file, transform=transform, maximages=10000)
+log.info("Loading datasets...")
+ntrain = args.ntrain
+ntest = int(0.1*ntrain)
+training_dataset = MARCODataset(training_file, transform=transform, maximages=ntrain)
+testing_dataset = MARCODataset(testing_file, transform=transform, maximages=ntest)
+log.info("Doing %d train images and %d test images" % (ntrain, ntest))
 
 # Create DataLoaders
-bs=16
+bs=10
+log.info("Loading dataloader...")
 train_loader = DataLoader(training_dataset, batch_size=bs, shuffle=True)
 test_loader = DataLoader(testing_dataset, batch_size=bs, shuffle=True)
 
@@ -87,17 +129,22 @@ class Net(nn.Module):
         return x
 
 
+log.info("Loading Net")
 net = Net()
 
 dev='cuda:1'
+if args.cpu:
+    dev= "cpu"
 net=net.to(dev)
-
 
 import torch.optim as optim
 
+log.info("Optimizer...")
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.0)
+optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.0)
 
+log.info("Script local vars:")
+log.info(globals())
 for epoch in range(300):  # loop over the dataset multiple times
 
     net.train()
@@ -116,12 +163,12 @@ for epoch in range(300):  # loop over the dataset multiple times
         loss.backward()
         optimizer.step()
 
-        # print statistics
+        # log.info statistics
         lossi = loss.item()
         training_loss += lossi
-        if i% 100==0:
-            print(f'[{epoch + 1}, {i + 1:5d}] loss: {lossi:.3f}')           
-    print('epoch',epoch + 1,'training loss',training_loss/len(train_loader))
+        if i % 5 == 0:
+            log.info(f'Epoch {epoch + 1}, Batch {i + 1}/{len(train_loader)}] loss: {lossi:.3f}')           
+    log.info('epoch',epoch + 1,'training loss',training_loss/len(train_loader))
     net.eval()
     test_loss=0
     with torch.no_grad():
@@ -135,8 +182,8 @@ for epoch in range(300):  # loop over the dataset multiple times
 
             lossi = loss.item()
             test_loss += lossi
-            if i% 100==0:
-                print(f'[{epoch + 1}, {i + 1:5d}] loss: {lossi:.3f}') 
-        print('epoch',epoch + 1,'test loss',test_loss/len(test_loader))
+            if i% 5==0:
+                log.info(f'Epoch {epoch + 1}, Batch {i + 1}/{len(test_loader)}] loss: {lossi:.3f}')           
+        log.info('epoch',epoch + 1,'test loss',test_loss/len(test_loader))
             
-print('Finished Training')
+log.info('Finished Training')
