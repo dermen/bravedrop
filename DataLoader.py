@@ -45,13 +45,13 @@ testing_file = '/mnt/data/ns1/brave/MARCO/marco.ccr.buffalo.edu/data/archive/tes
 
 # Define transformations with resizing
 transform = transforms.Compose([
-    transforms.Resize((256, 256)),  # Resize to 256x256 or any consistent size
+    transforms.Resize((600, 600)),  # Resize to 600 x 600 or any consistent size
     transforms.ToTensor()
 ])
 
 # Create datasets
-training_dataset = MARCODataset(training_file, transform=transform, maximages=1000)
-testing_dataset = MARCODataset(testing_file, transform=transform, maximages=100)
+training_dataset = MARCODataset(training_file, transform=transform, maximages=100000)
+testing_dataset = MARCODataset(testing_file, transform=transform, maximages=10000)
 
 # Create DataLoaders
 bs=16
@@ -73,10 +73,9 @@ class Net(nn.Module):
         self.conv1 = nn.Conv2d(3, 6, 5)
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 61 * 61, 120) #For 256x256 images
+        self.fc1 = nn.Linear(16 * 147 * 147, 120) #For 600 x 600 images
         self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
-        self.fc4 = nn.Linear(10,4)
+        self.fc3 = nn.Linear(84, 4)
 
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
@@ -85,7 +84,6 @@ class Net(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
-        x = self.fc4(x)
         return x
 
 
@@ -100,7 +98,7 @@ import torch.optim as optim
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.0)
 
-for epoch in range(10):  # loop over the dataset multiple times
+for epoch in range(300):  # loop over the dataset multiple times
 
     net.train()
     training_loss = 0.0
@@ -121,7 +119,8 @@ for epoch in range(10):  # loop over the dataset multiple times
         # print statistics
         lossi = loss.item()
         training_loss += lossi
-        print(f'[{epoch + 1}, {i + 1:5d}] loss: {lossi:.3f}')
+        if i% 100==0:
+            print(f'[{epoch + 1}, {i + 1:5d}] loss: {lossi:.3f}')           
     print('epoch',epoch + 1,'training loss',training_loss/len(train_loader))
     net.eval()
     test_loss=0
@@ -136,6 +135,8 @@ for epoch in range(10):  # loop over the dataset multiple times
 
             lossi = loss.item()
             test_loss += lossi
+            if i% 100==0:
+                print(f'[{epoch + 1}, {i + 1:5d}] loss: {lossi:.3f}') 
         print('epoch',epoch + 1,'test loss',test_loss/len(test_loader))
             
 print('Finished Training')
