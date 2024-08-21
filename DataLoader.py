@@ -6,6 +6,10 @@ pa.add_argument("logfile", type=str, help="path to a log file")
 pa.add_argument("--ntrain", type=int, help="Number of training images to load", default=1e5)
 pa.add_argument("--lr", type=float, default=0.001, help="learning rate")
 pa.add_argument("--cpu", action="store_true", help="Run training on the CPU (slow)")
+pa.add_argument("--devID", type=int, default=1, help="GPU device Id")
+pa.add_argument("--bs", type=int, help="batch size", default=40)
+pa.add_argument("--nwork", type=int, default=10, help="number of data loader workers")
+pa.add_argument("--adam", action="store_true")
 args = pa.parse_args()
 
 import os
@@ -53,10 +57,11 @@ def getLog(filename=None, level="info", do_nothing=False):
 
 
 class MARCODataset(Dataset):
-    def __init__(self, annotations_file, transform=None, target_transform=None, maximages=None):
+    def __init__(self, annotations_file, transform=None, target_transform=None, maximages=None,dev="cpu"):
         self.img_data = pd.read_csv(annotations_file, nrows=maximages)
         self.transform = transform
         self.target_transform = target_transform
+        self.dev=dev
 
     def __len__(self):
         return len(self.img_data)
@@ -80,6 +85,11 @@ log = getLog(args.logfile)
 training_file = '/mnt/data/ns1/brave/MARCO/marco.ccr.buffalo.edu/data/archive/train_out/info.csv'
 testing_file = '/mnt/data/ns1/brave/MARCO/marco.ccr.buffalo.edu/data/archive/test_out/info.csv'
 
+dev='cuda:%d' % args.devID
+if args.cpu:
+    dev= "cpu"
+log.info(f"Running model on device {dev}.")
+
 # Define transformations with resizing
 transform = transforms.Compose([
     transforms.Resize((600, 600)),  # Resize to 600 x 600 or any consistent size
@@ -91,14 +101,13 @@ log.info("Loading datasets...")
 ntrain = args.ntrain
 ntest = int(0.1*ntrain)
 training_dataset = MARCODataset(training_file, transform=transform, maximages=ntrain)
-testing_dataset = MARCODataset(testing_file, transform=transform, maximages=ntest)
+testing_dataset = MARCODataset(testing_file, transform=transform,maximages=ntest)
 log.info("Doing %d train images and %d test images" % (ntrain, ntest))
 
 # Create DataLoaders
-bs=10
 log.info("Loading dataloader...")
-train_loader = DataLoader(training_dataset, batch_size=bs, shuffle=True)
-test_loader = DataLoader(testing_dataset, batch_size=bs, shuffle=True)
+train_loader = DataLoader(training_dataset, batch_size=args.bs, shuffle=True, num_workers=args.nwork)
+test_loader = DataLoader(testing_dataset, batch_size=args.bs, shuffle=True, num_workers=args.nwork)
 
 tag="TestTra"
 # Output folder for saving images
@@ -131,10 +140,6 @@ class Net(nn.Module):
 
 log.info("Loading Net")
 net = Net()
-
-dev='cuda:1'
-if args.cpu:
-    dev= "cpu"
 net=net.to(dev)
 
 import torch.optim as optim
@@ -142,18 +147,19 @@ import torch.optim as optim
 log.info("Optimizer...")
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.0)
+if args.adam:
+    optimizer = optim.Adam(net.parameters(), lr=args.lr)
 
 log.info("Script local vars:")
 log.info(globals())
 for epoch in range(300):  # loop over the dataset multiple times
 
     net.train()
-    training_loss = 0.0
+    train_loss = 0.0
     for i, data in enumerate(train_loader, 0):
         # get the inputs; data is a list of [inputs, labels]
         inputs, labels = data
-        labels=labels.to(dev)
-        inputs=inputs.to(dev)
+        inputs,labels = inputs.to(dev), labels.to(dev)
         # zero the parameter gradients
         optimizer.zero_grad()
 
@@ -165,18 +171,17 @@ for epoch in range(300):  # loop over the dataset multiple times
 
         # log.info statistics
         lossi = loss.item()
-        training_loss += lossi
+        train_loss += lossi
         if i % 5 == 0:
             log.info(f'Epoch {epoch + 1}, Batch {i + 1}/{len(train_loader)}] loss: {lossi:.3f}')           
-    log.info('epoch',epoch + 1,'training loss',training_loss/len(train_loader))
+    log.info(f'Done with epoch {epoch + 1}; train loss= {train_loss/len(train_loader):.6f}')
     net.eval()
     test_loss=0
     with torch.no_grad():
         for i, data in enumerate(test_loader, 0):
         
             inputs, labels = data
-            labels=labels.to(dev)
-            inputs=inputs.to(dev)
+            inputs,labels = inputs.to(dev), labels.to(dev)
             outputs = net(inputs)
             loss = criterion(outputs, labels)
 
@@ -184,6 +189,6 @@ for epoch in range(300):  # loop over the dataset multiple times
             test_loss += lossi
             if i% 5==0:
                 log.info(f'Epoch {epoch + 1}, Batch {i + 1}/{len(test_loader)}] loss: {lossi:.3f}')           
-        log.info('epoch',epoch + 1,'test loss',test_loss/len(test_loader))
+        log.info(f'Done with epoch {epoch + 1}; test loss= {test_loss/len(test_loader):.6f}')
             
 log.info('Finished Training')
