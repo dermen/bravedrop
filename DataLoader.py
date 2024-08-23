@@ -3,7 +3,7 @@
 from argparse import ArgumentParser
 pa = ArgumentParser()
 pa.add_argument("logfile", type=str, help="path to a log file")
-pa.add_argument("--ntrain", type=int, help="Number of training images to load", default=1e5)
+pa.add_argument("--ntrain", type=int, help="Number of training images to load", default=1e5) #Keep in mind defaults 1e5**
 pa.add_argument("--lr", type=float, default=0.001, help="learning rate")
 pa.add_argument("--cpu", action="store_true", help="Run training on the CPU (slow)")
 pa.add_argument("--devID", type=int, default=1, help="GPU device Id")
@@ -17,7 +17,7 @@ import pandas as pd
 import logging
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
+from torchvision import transforms, models
 
 print("Done Import")
 
@@ -118,35 +118,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import torch
-class Net(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 147 * 147, 120) #For 600 x 600 images
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 4)
-
-    def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = torch.flatten(x, 1) # flatten all dimensions except batch
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
-
+from torchvision import models
 
 log.info("Loading Net")
-net = Net()
-net=net.to(dev)
+net = models.resnet18(pretrained=True)  # Load the pre-trained ResNet18 model
+num_ftrs = net.fc.in_features
+net.fc = nn.Linear(num_ftrs, 4)  # Adjust the final layer to match the number of classes
+net = net.to(dev)
 
 import torch.optim as optim
 
 log.info("Optimizer...")
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.0)
+optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9)  # Adjusted momentum for stability
 if args.adam:
     optimizer = optim.Adam(net.parameters(), lr=args.lr)
 
@@ -157,38 +141,42 @@ for epoch in range(300):  # loop over the dataset multiple times
     net.train()
     train_loss = 0.0
     for i, data in enumerate(train_loader, 0):
-        # get the inputs; data is a list of [inputs, labels]
         inputs, labels = data
         inputs,labels = inputs.to(dev), labels.to(dev)
-        # zero the parameter gradients
         optimizer.zero_grad()
-
-        # forward + backward + optimize
         outputs = net(inputs)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
 
-        # log.info statistics
         lossi = loss.item()
         train_loss += lossi
         if i % 5 == 0:
             log.info(f'Epoch {epoch + 1}, Batch {i + 1}/{len(train_loader)}] loss: {lossi:.3f}')           
     log.info(f'Done with epoch {epoch + 1}; train loss= {train_loss/len(train_loader):.6f}')
+    
     net.eval()
-    test_loss=0
+    test_loss = 0.0
+    correct = 0
+    total = 0
     with torch.no_grad():
         for i, data in enumerate(test_loader, 0):
-        
             inputs, labels = data
             inputs,labels = inputs.to(dev), labels.to(dev)
             outputs = net(inputs)
             loss = criterion(outputs, labels)
-
             lossi = loss.item()
             test_loss += lossi
-            if i% 5==0:
+
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+            if i % 5 == 0:
                 log.info(f'Epoch {epoch + 1}, Batch {i + 1}/{len(test_loader)}] loss: {lossi:.3f}')           
+
         log.info(f'Done with epoch {epoch + 1}; test loss= {test_loss/len(test_loader):.6f}')
-            
+        log.info(f'Test Accuracy of the network on the {total} test images: {100 * correct / total:.2f}%')
+
 log.info('Finished Training')
+##TEST
