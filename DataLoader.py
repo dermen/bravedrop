@@ -122,21 +122,15 @@ net = net.to(dev)
 
 import torch.optim as optim
 
-# Initialize optimizers
-sgd_optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.0)
-adam_optimizer = optim.Adam(net.parameters(), lr=args.lr)
+log.info("Optimizer...")
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.0)
+if args.adam:
+    optimizer = optim.Adam(net.parameters(), lr=args.lr)
 
 log.info("Script local vars:")
 log.info(globals())
 for epoch in range(300):  # loop over the dataset multiple times
-
-    # Alternate between SGD and Adam every 10 epochs
-    if epoch % 20 < 10:
-        optimizer = sgd_optimizer
-        log.info(f"Using SGD optimizer for epoch {epoch + 1}")
-    else:
-        optimizer = adam_optimizer
-        log.info(f"Using Adam optimizer for epoch {epoch + 1}")
 
     net.train()
     train_loss = 0.0
@@ -159,7 +153,6 @@ for epoch in range(300):  # loop over the dataset multiple times
         if i % 5 == 0:
             log.info(f'Epoch {epoch + 1}, Batch {i + 1}/{len(train_loader)}] loss: {lossi:.3f}')           
     log.info(f'Done with epoch {epoch + 1}; train loss= {train_loss/len(train_loader):.6f}')
-    
     net.eval()
     test_loss = 0.0
     with torch.no_grad():
@@ -177,4 +170,3 @@ for epoch in range(300):  # loop over the dataset multiple times
         log.info(f'Done with epoch {epoch + 1}; test loss= {test_loss/len(test_loader):.6f}')
             
 log.info('Finished Training')
-#This should be the new
