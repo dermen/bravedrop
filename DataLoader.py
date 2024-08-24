@@ -18,11 +18,6 @@ import logging
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torchvision.models import resnet18
 
 print("Done Import")
 
@@ -58,16 +53,38 @@ def getLog(filename=None, level="info", do_nothing=False):
         logger.addHandler(logfile)
     return logger
 
-# Updated log file name
-log = getLog("NewBL.log")
 
+class MARCODataset(Dataset):
+    def __init__(self, annotations_file, transform=None, target_transform=None, maximages=None, dev="cpu"):
+        self.img_data = pd.read_csv(annotations_file, nrows=maximages)
+        self.transform = transform
+        self.target_transform = target_transform
+        self.dev = dev
+
+    def __len__(self):
+        return len(self.img_data)
+
+    def __getitem__(self, idx):
+        img_path = self.img_data.iloc[idx, 0]
+        label = self.img_data.iloc[idx, 2]  # Assuming label_id is the third column
+        image = Image.open(img_path)
+        
+        if self.transform:
+            image = self.transform(image)
+        if self.target_transform:
+            label = self.target_transform(label)
+        
+        return image, label
+
+
+log = getLog("NewBL.log")
 # Paths to the dataset files
 training_file = '/mnt/data/ns1/brave/MARCO/marco.ccr.buffalo.edu/data/archive/train_out/info.csv'
 testing_file = '/mnt/data/ns1/brave/MARCO/marco.ccr.buffalo.edu/data/archive/test_out/info.csv'
 
-dev='cuda:%d' % args.devID
+dev = 'cuda:%d' % args.devID
 if args.cpu:
-    dev= "cpu"
+    dev = "cpu"
 log.info(f"Running model on device {dev}.")
 
 # Define transformations with resizing
@@ -79,7 +96,7 @@ transform = transforms.Compose([
 # Create datasets
 log.info("Loading datasets...")
 ntrain = args.ntrain
-ntest = int(0.1*ntrain)
+ntest = int(0.1 * ntrain)
 training_dataset = MARCODataset(training_file, transform=transform, maximages=ntrain)
 testing_dataset = MARCODataset(testing_file, transform=transform, maximages=ntest)
 log.info("Doing %d train images and %d test images" % (ntrain, ntest))
@@ -89,16 +106,39 @@ log.info("Loading dataloader...")
 train_loader = DataLoader(training_dataset, batch_size=args.bs, shuffle=True, num_workers=args.nwork)
 test_loader = DataLoader(testing_dataset, batch_size=args.bs, shuffle=True, num_workers=args.nwork)
 
-tag="TestTra"
+tag = "TestTra"
 # Output folder for saving images
 output_folder_root = "/mnt/data/ns1/brave/MARCO/MS/savedmodelfolder"
 output_folder = os.path.join(output_folder_root, tag)
 
-# Define the model
+import torch.nn as nn
+import torch.nn.functional as F
+import torch
+
+class Net(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Conv2d(3, 6, 5)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+        self.fc1 = nn.Linear(16 * 147 * 147, 120)  # For 600 x 600 images
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, 4)
+
+    def forward(self, x):
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = torch.flatten(x, 1)  # flatten all dimensions except batch
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+
 log.info("Loading Net")
-net = resnet18(pretrained=False)  # Use resnet18 model
-net.fc = nn.Linear(net.fc.in_features, 4)  # Adjust the final layer for 4 classes
+net = Net() 
 net = net.to(dev)
+
+import torch.optim as optim
 
 log.info("Optimizer...")
 criterion = nn.CrossEntropyLoss()
@@ -121,21 +161,21 @@ for epoch in range(300):  # loop over the dataset multiple times
 
         # forward + backward + optimize
         outputs = net(inputs)
-        loss = criterion(outputs)
+        loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
 
-        # log.info statistics
+        # log info statistics
         lossi = loss.item()
         train_loss += lossi
         if i % 5 == 0:
-            log.info(f'Epoch {epoch + 1}, Batch {i + 1}/{len(train_loader)}] loss: {lossi:.3f}')
+            log.info(f'Epoch {epoch + 1}, Batch {i + 1}/{len(train_loader)}] loss: {lossi:.3f}')           
     log.info(f'Done with epoch {epoch + 1}; train loss= {train_loss/len(train_loader):.6f}')
-    
     net.eval()
     test_loss = 0.0
     with torch.no_grad():
         for i, data in enumerate(test_loader, 0):
+        
             inputs, labels = data
             inputs, labels = inputs.to(dev), labels.to(dev)
             outputs = net(inputs)
@@ -144,7 +184,7 @@ for epoch in range(300):  # loop over the dataset multiple times
             lossi = loss.item()
             test_loss += lossi
             if i % 5 == 0:
-                log.info(f'Epoch {epoch + 1}, Batch {i + 1}/{len(test_loader)}] loss: {lossi:.3f}')
+                log.info(f'Epoch {epoch + 1}, Batch {i + 1}/{len(test_loader)}] loss: {lossi:.3f}')           
         log.info(f'Done with epoch {epoch + 1}; test loss= {test_loss/len(test_loader):.6f}')
-
+            
 log.info('Finished Training')
