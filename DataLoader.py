@@ -17,7 +17,7 @@ import pandas as pd
 import logging
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
+from torchvision import transforms, models
 
 print("Done Import")
 
@@ -77,7 +77,7 @@ class MARCODataset(Dataset):
         return image, label
 
 
-log = getLog("NewBL.log")
+log = getLog(args.logfile)
 # Paths to the dataset files
 training_file = '/mnt/data/ns1/brave/MARCO/marco.ccr.buffalo.edu/data/archive/train_out/info.csv'
 testing_file = '/mnt/data/ns1/brave/MARCO/marco.ccr.buffalo.edu/data/archive/test_out/info.csv'
@@ -115,40 +115,28 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
-class Net(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 147 * 147, 120)  # For 600 x 600 images
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 4)
-
-    def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = torch.flatten(x, 1)  # flatten all dimensions except batch
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
-
-log.info("Loading Net")
-net = Net() 
+log.info("Loading ResNet18")
+net = models.resnet18(pretrained=True)
+net.fc = nn.Linear(net.fc.in_features, 4)  # Adjust the final layer for 4 classes
 net = net.to(dev)
 
 import torch.optim as optim
 
-log.info("Optimizer...")
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.0)
-if args.adam:
-    optimizer = optim.Adam(net.parameters(), lr=args.lr)
+# Initialize optimizers
+sgd_optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.0)
+adam_optimizer = optim.Adam(net.parameters(), lr=args.lr)
 
 log.info("Script local vars:")
 log.info(globals())
 for epoch in range(300):  # loop over the dataset multiple times
+
+    # Alternate between SGD and Adam every 10 epochs
+    if epoch % 20 < 10:
+        optimizer = sgd_optimizer
+        log.info(f"Using SGD optimizer for epoch {epoch + 1}")
+    else:
+        optimizer = adam_optimizer
+        log.info(f"Using Adam optimizer for epoch {epoch + 1}")
 
     net.train()
     train_loss = 0.0
@@ -171,6 +159,7 @@ for epoch in range(300):  # loop over the dataset multiple times
         if i % 5 == 0:
             log.info(f'Epoch {epoch + 1}, Batch {i + 1}/{len(train_loader)}] loss: {lossi:.3f}')           
     log.info(f'Done with epoch {epoch + 1}; train loss= {train_loss/len(train_loader):.6f}')
+    
     net.eval()
     test_loss = 0.0
     with torch.no_grad():
@@ -188,3 +177,4 @@ for epoch in range(300):  # loop over the dataset multiple times
         log.info(f'Done with epoch {epoch + 1}; test loss= {test_loss/len(test_loader):.6f}')
             
 log.info('Finished Training')
+#This should be the new
