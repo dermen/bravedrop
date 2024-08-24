@@ -59,7 +59,7 @@ def getLog(filename=None, level="info", do_nothing=False):
     return logger
 
 # Updated log file name
-log = getLog("NewBigLog.log")
+log = getLog("NewBL.log")
 
 # Paths to the dataset files
 training_file = '/mnt/data/ns1/brave/MARCO/marco.ccr.buffalo.edu/data/archive/train_out/info.csv'
