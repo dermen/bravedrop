@@ -55,11 +55,11 @@ def getLog(filename=None, level="info", do_nothing=False):
 
 
 class MARCODataset(Dataset):
-    def __init__(self, annotations_file, transform=None, target_transform=None, maximages=None, dev="cpu"):
+    def __init__(self, annotations_file, use_complex_transform=True, target_transform=None, maximages=None, dev="cpu"):
         self.img_data = pd.read_csv(annotations_file, nrows=maximages)
-        self.transform = transform
         self.target_transform = target_transform
         self.dev = dev
+        self.use_complex_transform=True
 
     def __len__(self):
         return len(self.img_data)
@@ -69,12 +69,44 @@ class MARCODataset(Dataset):
         label = self.img_data.iloc[idx, 2]  # Assuming label_id is the third column
         image = Image.open(img_path)
         
-        if self.transform:
-            image = self.transform(image)
+        if self.use_complex_transform:
+            transform = self.complex_preprocess()
+
+        else:
+            transform = self.simple_preprocess()
+
+        image = transform(image)
+
         if self.target_transform:
             label = self.target_transform(label)
         
         return image, label
+
+    def simple_preprocess():
+        transform = transforms.Compose([
+            transforms.Resize((600, 600)),  # Resize to 600 x 600 or any consistent size
+            transforms.ToTensor()  # Convert image to tensor
+        ])
+        return transform
+
+    def complex_preprocess():
+        # Define transformations with resizing and additional random augmentations
+        rot0 = lambda x: x
+        rot90 = torch.rot90
+        rot180 = transforms.Compose((torch.rot90, torch.rot90))
+        rot270 = transforms.Compose((torch.rot90, torch.rot90, torch.rot90))
+        # use random number gen to select one of rot0 - rot270
+        rotate = ## ## Fill in this 
+
+        transform = transforms.Compose([
+            transforms.Resize((600, 600)),  # Resize to 600 x 600 or any consistent size
+            rotate,  # Random rotation by 90, 180, or 270 degrees
+            transforms.RandomHorizontalFlip(),  # Random horizontal flip
+            transforms.RandomVerticalFlip(),  # Random vertical flip
+            transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),  # Random Gaussian blur
+            transforms.ToTensor()  # Convert image to tensor
+        ])
+        return transform
 
 
 log = getLog(args.logfile)
