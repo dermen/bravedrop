@@ -87,10 +87,14 @@ if args.cpu:
     dev = "cpu"
 log.info(f"Running model on device {dev}.")
 
-# Define transformations with resizing
+# Define transformations with resizing and additional random augmentations
 transform = transforms.Compose([
     transforms.Resize((600, 600)),  # Resize to 600 x 600 or any consistent size
-    transforms.ToTensor()
+    transforms.RandomRotation([0, 90, 180, 270]),  # Random rotation by 90, 180, or 270 degrees
+    transforms.RandomHorizontalFlip(),  # Random horizontal flip
+    transforms.RandomVerticalFlip(),  # Random vertical flip
+    transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),  # Random Gaussian blur
+    transforms.ToTensor()  # Convert image to tensor
 ])
 
 # Create datasets
