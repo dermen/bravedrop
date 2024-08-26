@@ -120,19 +120,21 @@ if args.cpu:
 log.info(f"Running model on device {dev}.")
 
 # Define transformations with resizing and additional random augmentations
-transform = transforms.Compose([
-    transforms.Resize((600, 600)),  # Resize to 600 x 600 or any consistent size
-    transforms.RandomRotation([0, 90, 180, 270]),  # Random rotation by 90, 180, or 270 degrees
-    transforms.RandomHorizontalFlip(),  # Random horizontal flip
-    transforms.RandomVerticalFlip(),  # Random vertical flip
-    transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),  # Random Gaussian blur
-    transforms.ToTensor()  # Convert image to tensor
-])
+#transform = transforms.Compose([
+#    transforms.Resize((600, 600)),  # Resize to 600 x 600 or any consistent size
+#    transforms.RandomRotation([0, 90, 180, 270]),  # Random rotation by 90, 180, or 270 degrees
+#    transforms.RandomHorizontalFlip(),  # Random horizontal flip
+#    transforms.RandomVerticalFlip(),  # Random vertical flip
+#    transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),  # Random Gaussian blur
+#    transforms.ToTensor()  # Convert image to tensor
+#])
+use_complex_transform=True
 
 # Create datasets
 log.info("Loading datasets...")
 ntrain = args.ntrain
 ntest = int(0.1 * ntrain)
+# TODO: change transform arg to match class
 training_dataset = MARCODataset(training_file, transform=transform, maximages=ntrain)
 testing_dataset = MARCODataset(testing_file, transform=transform, maximages=ntest)
 log.info("Doing %d train images and %d test images" % (ntrain, ntest))
@@ -153,6 +155,7 @@ import torch
 
 log.info("Loading ResNet18")
 net = models.resnet18(pretrained=True)
+# TODO: try using Compose to link a dropout with this linear layer
 net.fc = nn.Linear(net.fc.in_features, 4)  # Adjust the final layer for 4 classes
 net = net.to(dev)
 
