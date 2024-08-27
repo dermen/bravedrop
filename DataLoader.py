@@ -97,12 +97,12 @@ class MARCODataset(Dataset):
         rotate = transforms.RandomChoice([rot0, rot90, rot180, rot270])  # Random rotation
 
         transform = transforms.Compose([
-            # transforms.Resize((600, 600)),  # Resize to 600 x 600 or any consistent size
-            # rotate,  # Random rotation by 0, 90, 180, or 270 degrees
-            # transforms.RandomHorizontalFlip(),  # Random horizontal flip
-            # transforms.RandomVerticalFlip(),  # Random vertical flip
-            # transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),  # Random Gaussian blur
-            # transforms.ToTensor()  # Convert image to tensor
+            transforms.Resize((600, 600)),  # Resize to 600 x 600 or any consistent size
+            rotate,  # Random rotation by 0, 90, 180, or 270 degrees
+            transforms.RandomHorizontalFlip(),  # Random horizontal flip
+            transforms.RandomVerticalFlip(),  # Random vertical flip
+            transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),  # Random Gaussian blur
+            transforms.ToTensor()  # Convert image to tensor
         ])
         return transform
 
@@ -132,7 +132,7 @@ log.info("Loading dataloader...")
 train_loader = DataLoader(training_dataset, batch_size=args.bs, shuffle=True, num_workers=args.nwork)
 test_loader = DataLoader(testing_dataset, batch_size=args.bs, shuffle=True, num_workers=args.nwork)
 
-tag = "TestTra"
+tag = "AdamOpt" if args.adam else "SGDOpt"
 # Output folder for saving images
 output_folder_root = "/mnt/data/ns1/brave/MARCO/MS/savedmodelfolder"
 output_folder = os.path.join(output_folder_root, tag)
