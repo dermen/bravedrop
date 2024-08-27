@@ -18,6 +18,7 @@ import logging
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, models
+import torch
 
 print("Done Import")
 
@@ -90,15 +91,9 @@ class MARCODataset(Dataset):
 
     def complex_preprocess(self):
         # Define transformations with resizing and additional random augmentations
-        rot0 = lambda x: x
-        rot90 = torch.rot90
-        rot180 = transforms.Compose((torch.rot90, torch.rot90))
-        rot270 = transforms.Compose((torch.rot90, torch.rot90, torch.rot90))
-        rotate = transforms.RandomChoice([rot0, rot90, rot180, rot270])  # Random rotation
-
         transform = transforms.Compose([
             transforms.Resize((600, 600)),  # Resize to 600 x 600 or any consistent size
-            rotate,  # Random rotation by 0, 90, 180, or 270 degrees
+            transforms.RandomRotation(degrees=90),  # Random rotation by 0, 90, 180, or 270 degrees
             transforms.RandomHorizontalFlip(),  # Random horizontal flip
             transforms.RandomVerticalFlip(),  # Random vertical flip
             transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),  # Random Gaussian blur
@@ -139,7 +134,6 @@ output_folder = os.path.join(output_folder_root, tag)
 
 import torch.nn as nn
 import torch.nn.functional as F
-import torch
 
 log.info("Loading ResNet18")
 net = models.resnet18(pretrained=True)
