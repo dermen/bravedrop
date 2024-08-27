@@ -59,7 +59,7 @@ class MARCODataset(Dataset):
         self.img_data = pd.read_csv(annotations_file, nrows=maximages)
         self.target_transform = target_transform
         self.dev = dev
-        self.use_complex_transform=True
+        self.use_complex_transform = use_complex_transform
 
     def __len__(self):
         return len(self.img_data)
@@ -71,7 +71,6 @@ class MARCODataset(Dataset):
         
         if self.use_complex_transform:
             transform = self.complex_preprocess()
-
         else:
             transform = self.simple_preprocess()
 
@@ -82,29 +81,28 @@ class MARCODataset(Dataset):
         
         return image, label
 
-    def simple_preprocess():
+    def simple_preprocess(self):
         transform = transforms.Compose([
             transforms.Resize((600, 600)),  # Resize to 600 x 600 or any consistent size
             transforms.ToTensor()  # Convert image to tensor
         ])
         return transform
 
-    def complex_preprocess():
+    def complex_preprocess(self):
         # Define transformations with resizing and additional random augmentations
         rot0 = lambda x: x
         rot90 = torch.rot90
         rot180 = transforms.Compose((torch.rot90, torch.rot90))
         rot270 = transforms.Compose((torch.rot90, torch.rot90, torch.rot90))
-        # use random number gen to select one of rot0 - rot270
-        rotate = ## ## Fill in this 
+        rotate = transforms.RandomChoice([rot0, rot90, rot180, rot270])  # Random rotation
 
         transform = transforms.Compose([
-            transforms.Resize((600, 600)),  # Resize to 600 x 600 or any consistent size
-            rotate,  # Random rotation by 90, 180, or 270 degrees
-            transforms.RandomHorizontalFlip(),  # Random horizontal flip
-            transforms.RandomVerticalFlip(),  # Random vertical flip
-            transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),  # Random Gaussian blur
-            transforms.ToTensor()  # Convert image to tensor
+            # transforms.Resize((600, 600)),  # Resize to 600 x 600 or any consistent size
+            # rotate,  # Random rotation by 0, 90, 180, or 270 degrees
+            # transforms.RandomHorizontalFlip(),  # Random horizontal flip
+            # transforms.RandomVerticalFlip(),  # Random vertical flip
+            # transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),  # Random Gaussian blur
+            # transforms.ToTensor()  # Convert image to tensor
         ])
         return transform
 
@@ -119,24 +117,14 @@ if args.cpu:
     dev = "cpu"
 log.info(f"Running model on device {dev}.")
 
-# Define transformations with resizing and additional random augmentations
-#transform = transforms.Compose([
-#    transforms.Resize((600, 600)),  # Resize to 600 x 600 or any consistent size
-#    transforms.RandomRotation([0, 90, 180, 270]),  # Random rotation by 90, 180, or 270 degrees
-#    transforms.RandomHorizontalFlip(),  # Random horizontal flip
-#    transforms.RandomVerticalFlip(),  # Random vertical flip
-#    transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),  # Random Gaussian blur
-#    transforms.ToTensor()  # Convert image to tensor
-#])
-use_complex_transform=True
-
 # Create datasets
 log.info("Loading datasets...")
 ntrain = args.ntrain
 ntest = int(0.1 * ntrain)
-# TODO: change transform arg to match class
-training_dataset = MARCODataset(training_file, transform=transform, maximages=ntrain)
-testing_dataset = MARCODataset(testing_file, transform=transform, maximages=ntest)
+
+# Updated to match the class definition
+training_dataset = MARCODataset(training_file, use_complex_transform=True, maximages=ntrain, dev=dev)
+testing_dataset = MARCODataset(testing_file, use_complex_transform=True, maximages=ntest, dev=dev)
 log.info("Doing %d train images and %d test images" % (ntrain, ntest))
 
 # Create DataLoaders
@@ -155,8 +143,11 @@ import torch
 
 log.info("Loading ResNet18")
 net = models.resnet18(pretrained=True)
-# TODO: try using Compose to link a dropout with this linear layer
-net.fc = nn.Linear(net.fc.in_features, 4)  # Adjust the final layer for 4 classes
+# Adding a dropout before the final linear layer
+net.fc = nn.Sequential(
+    nn.Dropout(p=0.5),  # Dropout with a probability of 0.5
+    nn.Linear(net.fc.in_features, 4)  # Adjust the final layer for 4 classes
+)
 net = net.to(dev)
 
 import torch.optim as optim
