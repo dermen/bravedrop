@@ -56,7 +56,9 @@ def getLog(filename=None, level="info", do_nothing=False):
 
 
 class MARCODataset(Dataset):
-    def __init__(self, annotations_file, use_complex_transform=True, target_transform=None, maximages=None, dev="cpu"):
+    def __init__(self, annotations_file, use_complex_transform=True, target_transform=None, maximages=-1, dev="cpu"):
+        if maximages = -1:
+            maximage = None
         self.img_data = pd.read_csv(annotations_file, nrows=maximages)
         self.target_transform = target_transform
         self.dev = dev
