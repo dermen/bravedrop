@@ -137,10 +137,14 @@ import torch.nn.functional as F
 
 log.info("Loading ResNet18")
 net = models.resnet18(pretrained=True)
-# Adding a dropout before the final linear layer
+# Adding a dropout before the final linear layer and a new linear layer sequence
 net.fc = nn.Sequential(
     nn.Dropout(p=0.5),  # Dropout with a probability of 0.5
-    nn.Linear(net.fc.in_features, 4)  # Adjust the final layer for 4 classes
+    nn.Linear(net.fc.in_features, 1000),  # First linear layer
+    nn.ReLU(),  # Activation function
+    nn.Linear(1000, 300),  # Second linear layer
+    nn.ReLU(),  # Activation function
+    nn.Linear(300, 4)  # Final layer for 4 classes
 )
 net = net.to(dev)
 
@@ -177,20 +181,30 @@ for epoch in range(300):  # loop over the dataset multiple times
         if i % 5 == 0:
             log.info(f'Epoch {epoch + 1}, Batch {i + 1}/{len(train_loader)}] loss: {lossi:.3f}')           
     log.info(f'Done with epoch {epoch + 1}; train loss= {train_loss/len(train_loader):.6f}')
+    
+    # Evaluate on the test set
     net.eval()
     test_loss = 0.0
+    correct = 0
+    total = 0
     with torch.no_grad():
         for i, data in enumerate(test_loader, 0):
-        
             inputs, labels = data
             inputs, labels = inputs.to(dev), labels.to(dev)
             outputs = net(inputs)
             loss = criterion(outputs, labels)
 
+            # Compute accuracy
+            _, predicted = torch.max(outputs, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
             lossi = loss.item()
             test_loss += lossi
             if i % 5 == 0:
-                log.info(f'Epoch {epoch + 1}, Batch {i + 1}/{len(test_loader)}] loss: {lossi:.3f}')           
-        log.info(f'Done with epoch {epoch + 1}; test loss= {test_loss/len(test_loader):.6f}')
+                log.info(f'Epoch {epoch + 1}, Batch {i + 1}/{len(test_loader)}] loss: {lossi:.3f}')
+        
+        accuracy = 100 * correct / total
+        log.info(f'Done with epoch {epoch + 1}; test loss= {test_loss/len(test_loader):.6f}; accuracy= {accuracy:.2f}%')
             
 log.info('Finished Training')
