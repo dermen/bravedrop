@@ -1,6 +1,19 @@
 #!/usr/bin/env python
 # coding: utf-8
+
 from argparse import ArgumentParser
+import os
+import pandas as pd
+import logging
+from PIL import Image
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms, models
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+
+# Argument parsing
 pa = ArgumentParser()
 pa.add_argument("logfile", type=str, help="path to a log file")
 pa.add_argument("--ntrain", type=int, help="Number of training images to load", default=1e5)
@@ -10,15 +23,8 @@ pa.add_argument("--devID", type=int, default=1, help="GPU device Id")
 pa.add_argument("--bs", type=int, help="batch size", default=40)
 pa.add_argument("--nwork", type=int, default=10, help="number of data loader workers")
 pa.add_argument("--adam", action="store_true")
+pa.add_argument("--resnet", type=int, choices=[18, 34, 50], default=18, help="ResNet architecture to use (18, 34, or 50)")
 args = pa.parse_args()
-
-import os
-import pandas as pd
-import logging
-from PIL import Image
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms, models
-import torch
 
 print("Done Import")
 
@@ -53,7 +59,6 @@ def getLog(filename=None, level="info", do_nothing=False):
         logfile.setLevel(levels["info"])
         logger.addHandler(logfile)
     return logger
-
 
 class MARCODataset(Dataset):
     def __init__(self, annotations_file, use_complex_transform=True, target_transform=None, maximages=-1, dev="cpu"):
@@ -103,7 +108,6 @@ class MARCODataset(Dataset):
         ])
         return transform
 
-
 log = getLog(args.logfile)
 # Paths to the dataset files
 training_file = '/mnt/data/ns1/brave/MARCO/marco.ccr.buffalo.edu/data/archive/train_out/info.csv'
@@ -134,11 +138,16 @@ tag = "AdamOpt" if args.adam else "SGDOpt"
 output_folder_root = "/mnt/data/ns1/brave/MARCO/MS/savedmodelfolder"
 output_folder = os.path.join(output_folder_root, tag)
 
-import torch.nn as nn
-import torch.nn.functional as F
+log.info(f"Loading ResNet{args.resnet}")
 
-log.info("Loading ResNet34")
-net = models.resnet34(pretrained=True)
+# Load the specified ResNet model
+if args.resnet == 18:
+    net = models.resnet18(pretrained=True)
+elif args.resnet == 34:
+    net = models.resnet34(pretrained=True)
+elif args.resnet == 50:
+    net = models.resnet50(pretrained=True)
+
 # Adding a dropout before the final linear layer and a new linear layer sequence
 net.fc = nn.Sequential(
     nn.Dropout(p=0.5),  # Dropout with a probability of 0.5
@@ -149,8 +158,6 @@ net.fc = nn.Sequential(
     nn.Linear(300, 4)  # Final layer for 4 classes
 )
 net = net.to(dev)
-
-import torch.optim as optim
 
 log.info("Optimizer...")
 criterion = nn.CrossEntropyLoss()
