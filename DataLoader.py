@@ -57,8 +57,8 @@ def getLog(filename=None, level="info", do_nothing=False):
 
 class MARCODataset(Dataset):
     def __init__(self, annotations_file, use_complex_transform=True, target_transform=None, maximages=-1, dev="cpu"):
-        if maximages = -1:
-            maximage = None
+        if maximages == -1:
+            maximages = None
         self.img_data = pd.read_csv(annotations_file, nrows=maximages)
         self.target_transform = target_transform
         self.dev = dev
@@ -137,8 +137,8 @@ output_folder = os.path.join(output_folder_root, tag)
 import torch.nn as nn
 import torch.nn.functional as F
 
-log.info("Loading ResNet18")
-net = models.resnet18(pretrained=True)
+log.info("Loading ResNet34")
+net = models.resnet34(pretrained=True)
 # Adding a dropout before the final linear layer and a new linear layer sequence
 net.fc = nn.Sequential(
     nn.Dropout(p=0.5),  # Dropout with a probability of 0.5
@@ -201,7 +201,7 @@ for epoch in range(300):  # loop over the dataset multiple times
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-            lossi = loss.item()
+            lossi = loss.item() 
             test_loss += lossi
             if i % 5 == 0:
                 log.info(f'Epoch {epoch + 1}, Batch {i + 1}/{len(test_loader)}] loss: {lossi:.3f}')
