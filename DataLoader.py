@@ -10,7 +10,6 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, models
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 
 # Argument parsing
@@ -60,55 +59,8 @@ def getLog(filename=None, level="info", do_nothing=False):
         logger.addHandler(logfile)
     return logger
 
-class MARCODataset(Dataset):
-    def __init__(self, annotations_file, use_complex_transform=True, target_transform=None, maximages=-1, dev="cpu"):
-        if maximages == -1:
-            maximages = None
-        self.img_data = pd.read_csv(annotations_file, nrows=maximages)
-        self.target_transform = target_transform
-        self.dev = dev
-        self.use_complex_transform = use_complex_transform
-
-    def __len__(self):
-        return len(self.img_data)
-
-    def __getitem__(self, idx):
-        img_path = self.img_data.iloc[idx, 0]
-        label = self.img_data.iloc[idx, 2]  # Assuming label_id is the third column
-        image = Image.open(img_path)
-        
-        if self.use_complex_transform:
-            transform = self.complex_preprocess()
-        else:
-            transform = self.simple_preprocess()
-
-        image = transform(image)
-
-        if self.target_transform:
-            label = self.target_transform(label)
-        
-        return image, label
-
-    def simple_preprocess(self):
-        transform = transforms.Compose([
-            transforms.Resize((600, 600)),  # Resize to 600 x 600 or any consistent size
-            transforms.ToTensor()  # Convert image to tensor
-        ])
-        return transform
-
-    def complex_preprocess(self):
-        # Define transformations with resizing and additional random augmentations
-        transform = transforms.Compose([
-            transforms.Resize((600, 600)),  # Resize to 600 x 600 or any consistent size
-            transforms.RandomRotation(degrees=90),  # Random rotation by 0, 90, 180, or 270 degrees
-            transforms.RandomHorizontalFlip(),  # Random horizontal flip
-            transforms.RandomVerticalFlip(),  # Random vertical flip
-            transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),  # Random Gaussian blur
-            transforms.ToTensor()  # Convert image to tensor
-        ])
-        return transform
-
-log = getLog(args.logfile)
+# Initialize logging
+log = getLog('RS50Log.log')
 # Paths to the dataset files
 training_file = '/mnt/data/ns1/brave/MARCO/marco.ccr.buffalo.edu/data/archive/train_out/info.csv'
 testing_file = '/mnt/data/ns1/brave/MARCO/marco.ccr.buffalo.edu/data/archive/test_out/info.csv'
