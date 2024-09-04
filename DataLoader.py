@@ -23,6 +23,7 @@ pa.add_argument("--bs", type=int, help="batch size", default=40)
 pa.add_argument("--nwork", type=int, default=10, help="number of data loader workers")
 pa.add_argument("--adam", action="store_true")
 pa.add_argument("--resnet", type=int, choices=[18, 34, 50], default=18, help="ResNet architecture to use (18, 34, or 50)")
+pa.add_argument("--savepath", type=str, required=True, help="Path to save the model's state after each epoch")
 args = pa.parse_args()
 
 print("Done Import")
@@ -189,6 +190,11 @@ for epoch in range(300):  # loop over the dataset multiple times
         if i % 5 == 0:
             log.info(f'Epoch {epoch + 1}, Batch {i + 1}/{len(train_loader)}] loss: {lossi:.3f}')           
     log.info(f'Done with epoch {epoch + 1}; train loss= {train_loss/len(train_loader):.6f}')
+    
+    # Save the model's state as a .net file
+    epoch_save_path = os.path.join(args.savepath, f'model_epoch_{epoch + 1}.net')
+    torch.save(net.state_dict(), epoch_save_path)
+    log.info(f'Model saved at {epoch_save_path}')
     
     # Evaluate on the test set
     net.eval()
