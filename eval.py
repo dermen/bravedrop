@@ -7,7 +7,7 @@ import pandas as pd
 import logging
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms, models
+from torchvision import transforms, models  # Fixed import here
 import torch
 import torch.nn as nn
 import torch.optim as optim
