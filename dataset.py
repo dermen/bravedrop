@@ -1,5 +1,5 @@
 import pandas as pd
-from torchvisions import transforms
+from torchvision import transforms
 from PIL import Image
 
 
