@@ -3,7 +3,6 @@ from torchvision import transforms
 from torch.utils.data import Dataset
 from PIL import Image
 
-
 # Define the MARCODataset class
 class MARCODataset(Dataset):
     def __init__(self, annotations_file, use_complex_transform=True, target_transform=None, maximages=-1, dev="cpu"):
@@ -22,6 +21,10 @@ class MARCODataset(Dataset):
         label = self.img_data.iloc[idx, 2]  # Assuming label_id is the third column
         image = Image.open(img_path)
         
+        # Check if the image is greyscale and convert to RGB if needed
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+
         if self.use_complex_transform:
             transform = self.complex_preprocess()
         else:
@@ -51,4 +54,3 @@ class MARCODataset(Dataset):
             transforms.ToTensor()  # Convert image to tensor
         ])
         return transform
-
