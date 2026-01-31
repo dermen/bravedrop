@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "brave"
+version = "0.2.0"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["brave*"]
+
+[project.scripts]
+marcoscore = "brave.marco_score:main"
+
