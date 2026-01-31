@@ -28,10 +28,9 @@ The model below was trained by reading the CSV files
 ```
 training_file = 'marco.ccr.buffalo.edu/data/archive/train_out/info.csv'
 testing_file = 'marco.ccr.buffalo.edu/data/archive/test_out/info.csv'
+```
 
 which are obtained upon issuring the above commands...
-
-```
 
 
 #### The current model
