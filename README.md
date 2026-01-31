@@ -18,3 +18,17 @@ Here is the training log from that command:
 wget https://smb.slac.stanford.edu/~dermen/Final.log
 ```
 
+#### Running the inference server
+
+```
+nohup python server.py > server_log.txt 2>&1 &
+```
+
+Then interact with it via `marco_score.py`, 
+
+```
+python marco_score.py -i /path/to/crystal_plate_image.jpeg
+
+python marco_score.py -i /path/to/crystal_plate_image.png
+```
+
