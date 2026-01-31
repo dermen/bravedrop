@@ -55,11 +55,13 @@ wget https://smb.slac.stanford.edu/~dermen/Final.log
 
 #### Running the inference server
 
+Launch the inference server and pre-load the model onto a GPU
+
 ```
 nohup python marco_server.py > server_log.txt 2>&1 &
 ```
 
-Then interact with it via `marco_score.py`, 
+Then interact with it over the network using `brave/marco_score.py`, 
 
 ```
 python brave/marco_score.py -i /path/to/crystal_plate_image.jpeg
@@ -67,8 +69,7 @@ python brave/marco_score.py -i /path/to/crystal_plate_image.jpeg
 python brave/marco_score.py -i /path/to/crystal_plate_image.png
 ```
 
-Or do an installation
-
+The inference client can also be installed via pip:
 
 ```
 pip install -e .
