@@ -15,6 +15,7 @@ import torch.optim as optim
 # Argument parsing
 pa = ArgumentParser()
 pa.add_argument("logfile", type=str, help="path to a log file")
+pa.add_argument("netfile", type=str, help="path to a net file")
 pa.add_argument("--cpu", action="store_true", help="Run training on the CPU (slow)")
 pa.add_argument("--devID", type=int, default=1, help="GPU device Id")
 pa.add_argument("--nwork", type=int, default=10, help="number of data loader workers")
@@ -59,7 +60,8 @@ def getLog(filename=None, level="info", do_nothing=False):
 log = getLog(args.logfile)
 # Paths to the dataset files
 #testing_file = '/mnt/data/ns1/brave/MARCO/marco.ccr.buffalo.edu/data/archive/test_out/info.csv'
-testing_file = '/mnt/data/ns1/brave/MARCO/MS/ARI.csv'  # Updated testing file path
+#testing_file = '/data/brave/MARCO/MS/ARI.csv'  # Updated testing file path
+testing_file = '/data/brave/MARCO/marco.ccr.buffalo.edu/data/archive/test_out/info.csv'
 
 dev = 'cuda:%d' % args.devID
 if args.cpu:
@@ -102,7 +104,8 @@ net.fc = nn.Sequential(
     nn.Linear(300, 4)  # Final layer for 4 classes
 )
 net = net.to(dev)
-net.load_state_dict(torch.load("../model_epoch_300.net", weights_only=True))
+#net.load_state_dict(torch.load("../model_epoch_300.net", weights_only=True))
+net.load_state_dict(torch.load(args.netfile, weights_only=True))
 
 log.info("Optimizer...")
 criterion = nn.CrossEntropyLoss()
@@ -137,6 +140,12 @@ for epoch in range(1):  # loop over onceover dataset
             # Compute accuracy
             _, predicted = torch.max(outputs, 1)
             p = probs[0][predicted[0].item()]
+
+            # Extract the actual class name and the ground truth
+            pred_name = labels_map[predicted[0].item()]
+            true_name = labels_map[labels[0].item()]
+            all_probs = probs[0].cpu().numpy() # [prob0, prob1, prob2, prob3]
+            log.info(f"Image {i} | Pred: {pred_name} ({p:.4f}) | True: {true_name} | Full Probs: {all_probs}")
             #from IPython import embed
             #embed()
             total += labels.size(0)
@@ -145,6 +154,7 @@ for epoch in range(1):  # loop over onceover dataset
             lossi = loss.item() 
             test_loss += lossi
             log.info(f'Image Number{i}; {predicted[0].item()}; Probs; {p}') #format to include the predictions and probab. (Predicted with )
+            print("")
             #if i % 5 == 0:
             #    log.info(f'Batch {i + 1}/{len(test_loader)}] loss: {lossi:.3f}')
         
