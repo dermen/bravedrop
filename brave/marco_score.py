@@ -22,7 +22,7 @@ def get_prediction(img_path, host="0.0.0.0"):
         print("-" * 30)
         
     except requests.exceptions.ConnectionError:
-        print("Error: Could not connect to the GPU server. Is server.py running?")
+        print("Error: Could not connect to the MARCO SCORE server. Is marco_server.py running? Check the health dashboard at http://pxgpu03:8888")
     except Exception as e:
         print(f"Error: {e}")
 
