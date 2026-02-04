@@ -1,7 +1,7 @@
-Algorithms and scripts for analyzing droplet images
+Algorithms and scripts for analyzing droplet images and detecting crystals at the beamline
 
 
-#### Getting th MARCO training data
+#### Getting the MARCO training data
 
 ```
 # get terf for unpacking imgs 
